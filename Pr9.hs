@@ -19,10 +19,10 @@ module Pr9 where
 -- ------------------------------------------------------------
 
 digits :: Int -> [Int]
-digits n = []
+digits n = [ read [x] :: Int | x <- show n ]
 
 digits' :: Int -> [Int]
-digits' n = []
+digits' n = map (\x -> read [x] :: Int) (show n)
 
 
 -- ------------------------------------------------------------
@@ -37,10 +37,20 @@ digits' n = []
 -- ------------------------------------------------------------
 
 bmi :: Double -> Double -> String
-bmi w h = "?"
+bmi w h = 
+    if  w / (h^2) < 18.5 then "Underweight"
+    else if w / (h^2) < 25 then "Normal"
+    else if w / (h^2) < 30 then "Overweight"
+    else "Obese"
+
 
 bmi' :: Double -> Double -> String
-bmi' w h = "?"
+bmi' w h
+    | b < 18.5 = "Underweight"
+    | b < 25 = "Normal"
+    | b < 30 = "Overweight"
+    | otherwise = "Obese"
+    where b = w / (h^2)
 
 
 -- ------------------------------------------------------------
@@ -52,10 +62,11 @@ bmi' w h = "?"
 -- ------------------------------------------------------------
 
 safeHead :: [a] -> Maybe a
-safeHead xs = Nothing
+safeHead [] = Nothing
+safeHead (x:xs) = Just x
 
 safeHead' :: [a] -> Maybe a
-safeHead' xs = Nothing
+safeHead' xs = if null xs then Nothing else Just (head xs)
 
 
 -- ------------------------------------------------------------
@@ -66,10 +77,10 @@ safeHead' xs = Nothing
 -- ------------------------------------------------------------
 
 zipWithIndex :: [a] -> [(Int, a)]
-zipWithIndex xs = []
+zipWithIndex xs = zip [0..] xs
 
 zipWithIndex' :: [a] -> [(Int, a)]
-zipWithIndex' xs = []
+zipWithIndex' xs = map(\(i, x) -> (i,x)) (zip [0..] xs)
 
 
 -- ------------------------------------------------------------
@@ -81,10 +92,10 @@ zipWithIndex' xs = []
 -- ------------------------------------------------------------
 
 mySum :: [Int] -> Int
-mySum xs = -1
+mySum xs = foldl (+) 0 xs
 
 mySum' :: [Int] -> Int
-mySum' xs = -1
+mySum' xs = foldr (+) 0 xs
 
 
 -- ------------------------------------------------------------
@@ -97,10 +108,10 @@ mySum' xs = -1
 -- ------------------------------------------------------------
 
 wordsOfLength :: Int -> String -> [String]
-wordsOfLength n s = []
+wordsOfLength n s = filter (\w -> length w == n) (words s)
 
 wordsOfLength' :: Int -> String -> [String]
-wordsOfLength' n s = []
+wordsOfLength' n s = filter ((== n) . length) (words s)
 
 
 -- ============================================================
@@ -127,9 +138,9 @@ int2nat n = Succ (int2nat (n - 1))
 -- ------------------------------------------------------------
 
 subNat :: Nat -> Nat -> Nat
-subNat m n = Zero
-
-
+subNat m Zero = m
+subNat Zero n = Zero
+subNat (Succ m) (Succ n) = subNat m n
 -- ---------- Expr ----------
 
 data Expr = Val Int
@@ -144,8 +155,9 @@ data Expr = Val Int
 -- ------------------------------------------------------------
 
 eval :: Expr -> Int
-eval e = -1
-
+eval (Val n) = n
+eval (Add x y) = eval x + eval y
+eval (Mul x y) = eval x * eval y
 
 -- ------------------------------------------------------------
 -- Problem 9: exprDepth
@@ -159,8 +171,9 @@ eval e = -1
 -- ------------------------------------------------------------
 
 exprDepth :: Expr -> Int
-exprDepth e = -1
-
+exprDepth (Val n) = 1
+exprDepth (Add x y) = 1 + max (exprDepth x) (exprDepth y)
+exprDepth (Mul x y) = 1 + max (exprDepth x) (exprDepth y)
 
 -- ---------- Tree ----------
 
@@ -177,8 +190,9 @@ data Tree a = Nil
 -- ------------------------------------------------------------
 
 treeToList :: Tree a -> [a]
-treeToList t = []
-
+treeToList Nil = []
+treeToList (Leaf x) = [x]
+treeToList (Node left x right) =  treeToList left ++ [x] ++ treeToList right
 
 -- ============================================================
 -- Part C — HigherOrder functions
@@ -195,7 +209,13 @@ treeToList t = []
 -- ------------------------------------------------------------
 
 split :: Int -> [a] -> Maybe [[a]]
-split n xs = Nothing
+split n xs
+    | n <= 0 = Nothing
+    | null xs = Just []
+    | length xs < n = Nothing
+    | otherwise = do
+        chunks <- split n (drop n xs)
+        return (take n xs : chunks)
 
 
 -- ------------------------------------------------------------
@@ -207,7 +227,12 @@ split n xs = Nothing
 -- ------------------------------------------------------------
 
 isRepeats :: Eq a => Int -> [a] -> Bool
-isRepeats n xs = False
+isRepeats n xs = helper (split n xs)
+
+helper :: Eq a => Maybe [[a]] -> Bool
+helper Nothing = False
+helper (Just []) = False
+helper (Just (x:xs)) = all (==x) xs
 
 
 -- ------------------------------------------------------------
@@ -216,8 +241,12 @@ isRepeats n xs = False
 -- ------------------------------------------------------------
 
 isRepeats' :: Eq a => Int -> [a] -> Bool
-isRepeats' n xs = False
+isRepeats' n xs = helper' (split n xs)
 
+helper' :: Eq a => Maybe [[a]] -> Bool
+helper' Nothing = False
+helper' (Just []) = False
+helper' (Just (y:ys)) = null (filter (/= y) ys)
 
 -- ------------------------------------------------------------
 -- Problem 14: isRepeats'' (foldr)
@@ -225,8 +254,13 @@ isRepeats' n xs = False
 -- ------------------------------------------------------------
 
 isRepeats'' :: Eq a => Int -> [a] -> Bool
-isRepeats'' n xs = False
+isRepeats'' n xs = helper'' (split n xs)
 
+helper'' :: Eq a => Maybe [[a]] -> Bool
+helper'' Nothing = False
+helper'' (Just []) = False
+helper'' (Just (y:ys)) =
+    foldr (\z acc -> if z == y then acc else False) True ys
 
 -- ------------------------------------------------------------
 -- Problem 15: repeats
@@ -240,4 +274,9 @@ isRepeats'' n xs = False
 -- ------------------------------------------------------------
 
 repeats :: Eq a => [a] -> Maybe [a]
-repeats xs = Nothing
+repeats xs = helper (length xs `div` 2)
+  where
+    helper 0 = Nothing
+    helper n
+        | isRepeats n xs = Just (take n xs)
+        | otherwise      = helper (n - 1)
